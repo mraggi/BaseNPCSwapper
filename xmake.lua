@@ -1,9 +1,45 @@
 -- include subprojects
 includes("lib/commonlibf4")
 
+-- ---------------------------------------------------------------------------
+-- Plugin identity. project.lua is GENERATED from project.conf by the build
+-- scripts (scripts/_common.sh) — edit project.conf, never project.lua.
+--
+-- Why the indirection: xmake's description scope has no `io` module, so this
+-- file cannot read project.conf directly. includes() does share globals, so a
+-- generated Lua mirror is the way to keep one editable source of truth.
+-- ---------------------------------------------------------------------------
+includes("project.lua")
+
+-- xmake's description scope has no assert/error/raise either, so a bad config
+-- is reported by hand and then forced to abort by indexing nil. Ugly, but the
+-- alternative is silently building a plugin with no name.
+local function die(a_message)
+    print("")
+    print("xmake.lua: " .. a_message)
+    print("")
+    local abort = nil
+    abort.bad_project_configuration = true
+end
+
+if not CONF_PLUGIN_NAME or not CONF_VERSION then
+    die("project.lua is missing or stale. It is GENERATED from project.conf — " ..
+        "run ./gen_compile_commands.sh (or any build script) to regenerate it.")
+end
+
+local plugin_name = CONF_PLUGIN_NAME
+local plugin_version = CONF_VERSION
+local plugin_author = CONF_AUTHOR or ""
+local plugin_description = CONF_DESCRIPTION or ""
+
+local version_major, version_minor, version_patch = plugin_version:match("^(%d+)%.(%d+)%.(%d+)$")
+if not version_major then
+    die("project.conf: VERSION must be MAJOR.MINOR.PATCH, got '" .. plugin_version .. "'")
+end
+
 -- set project constants
-set_project("BaseNPCSwapper")
-set_version("0.9.1")
+set_project(plugin_name)
+set_version(plugin_version)
 set_license("GPL-3.0")
 set_languages("c++23")
 set_warnings("allextra")
@@ -11,6 +47,11 @@ set_warnings("allextra")
 -- add common rules (Added "mode.release" here)
 add_rules("mode.debug", "mode.releasedbg", "mode.release")
 add_rules("plugin.vsxmake.autoupdate")
+
+-- Multi-runtime: REL::ID / REL::Offset carry one entry per runtime, indexed by
+-- REX::FModule::Runtime { kOG = 0, kNG = 1, kAE = 2 }. This is what makes a
+-- single DLL work on OG (1.10.163), NG (1.10.980+) and AE. Do not lower it.
+add_defines("COMMONLIB_RUNTIMECOUNT=3")
 
 -- 🔒 Static-link the MSVC runtime (/MT, /MTd).
 -- The plugin then carries NO external CRT dependency (no msvcp140.dll /
@@ -33,39 +74,12 @@ if is_mode("release") then
 	add_vectorexts("sse2", "avx2") -- Tailors code to modern CPU instruction sets
 	end
 
-	-- Project-local plugin rule. Same as commonlibf4.plugin except it
-	-- does NOT auto-generate a commonlibf4-plugin.cpp pinning the DLL to
-	-- F4SE::RUNTIME_LATEST. We provide our own F4SEPlugin_Version in
-	-- src/main.cpp with an explicit CompatibleVersions list spanning the
-	-- full NG/AE runtime range.
-	rule("bns.plugin", function()
-		add_deps("commonlib.plugin")
-
-		on_load(function(target)
-			target:data_set("commonlib.plugin.config", target:extraconf("rules", "bns.plugin"))
-			target:data_set("commonlib.plugin.package", { prefixdir = "Data" })
-		end)
-
-		on_config(function(target)
-			target:add("deps", "commonlibf4")
-
-			if os.getenv("XSE_FO4_MODS_PATH") then
-				target:set("installdir", path.join(os.getenv("XSE_FO4_MODS_PATH"), target:name()))
-			elseif os.getenv("XSE_FO4_GAME_PATH") then
-				target:set("installdir", path.join(os.getenv("XSE_FO4_GAME_PATH"), "Data"))
-			end
-
-			target:add("installfiles", target:targetfile(), { prefixdir = "F4SE/Plugins" })
-			target:add("installfiles", target:symbolfile(), { prefixdir = "F4SE/Plugins" })
-		end)
-	end)
-
 	-- define targets
-	target("BaseNPCSwapper")
-	add_rules("bns.plugin", {
-		name = "BaseNPCSwapper",
-		author = "mraggi",
-		description = "F4SE plugin: runtime NPC swapper / modifier"
+	target(plugin_name)
+	add_rules("commonlibf4.plugin", {
+		name = plugin_name,
+		author = plugin_author,
+		description = plugin_description
 	})
 
 	-- Nuke the Windows.h min/max macros globally
@@ -77,9 +91,9 @@ if is_mode("release") then
 	add_ldflags("/CETCOMPAT:NO")
 
 	-- For absolute peak performance in Release mode: Link-Time Optimization
--- 	if is_mode("release") then
--- 		set_policy("build.optimization.lto", true) -- Enables Interprocedural Optimization / GL / LTCG
--- 		end
+	-- 	if is_mode("release") then
+	-- 		set_policy("build.optimization.lto", true) -- Enables Interprocedural Optimization / GL / LTCG
+	-- 		end
 
 		-- add src files
 		add_files("src/**.cpp")

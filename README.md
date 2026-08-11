@@ -1,5 +1,23 @@
 # BaseNPCSwapper (BNS) for Fallout 4
 
+> ### ⚠️ `experimental` branch
+>
+> This branch is the **multi-runtime port**, published for source review. It
+> builds against a fork of CommonLibF4 that carries per-runtime addresses, so
+> a single DLL targets OG (1.10.163), NG (up to 1.10.984) and AE (1.11.x)
+> instead of NG/AE only.
+>
+> **It has not been run in-game at all** — development only has access to a
+> Windows build VM, with no way to launch the game on this machine. OG/NG/AE
+> address resolution is believed correct by inspection (see
+> [docs/MultiRuntime.md](docs/MultiRuntime.md)), but two vtable hooks the
+> plugin installs itself (`Actor::Load3D`, and the EditorID fallback) hardcode
+> a slot index that is *assumed*, not confirmed, to be identical across all
+> three runtimes. If that assumption is wrong on OG, the plugin silently does
+> nothing rather than crashing. **Back up your save** if you try this on OG.
+>
+> `main` is the released, NG/AE-only code.
+
 **[Available on Nexus Mods](https://www.nexusmods.com/fallout4/mods/104443)**
 
 BaseNPCSwapper is an F4SE plugin that intercepts every NPC's 3D-load at runtime and, according to user-defined INI rules, can:
@@ -99,6 +117,12 @@ Set `debugLevel = N` in your rule and check `My Documents/My Games/Fallout4/F4SE
 3. Drop the contents of the release zip into your Fallout 4 install (or better yet - use a mod manager).
 4. Add INI rules under `Data/F4SE/Plugins/BaseNPCSwapper/`.
 
+**Game version:** this branch targets OG (pre-Next-Gen, 1.10.163), NG, and AE
+from one DLL — you'll still need the [Address
+Library](https://www.nexusmods.com/fallout4/mods/47327) entry matching your
+exact exe version. **OG support is experimental**, see the warning at the top
+of this file.
+
 If Hydra isn't installed BNS will pop a MessageBox at launch — without Hydra, EditorID lookups for NPC-typed forms will fail and rules referencing those forms by EditorID may not work as intended. The `Mod.esp|FormID` syntax still works without Hydra.
 
 ### Uninstalling cleanly
@@ -114,13 +138,13 @@ The plugin ships with an MCM-driven uninstaller. Trigger `BNSUninstaller.Uninsta
 ## Dependencies
 
 - **C++23** (`std::format`, `std::ranges`, designated initializers).
-- **CommonLibF4** — git submodule at `lib/CommonLibF4`.
+- **CommonLibF4** — git submodule at `lib/CommonLibF4`, the [Dear-Modding-FO4](https://github.com/Dear-Modding-FO4/commonlibf4) fork (adds OG/NG/AE multi-runtime support — see [docs/MultiRuntime.md](docs/MultiRuntime.md)).
 - **spdlog**, **F4SE** — pulled in by the xmake plugin rule.
 
 ---
 
 ## Credits
 
-- The libxse team and every contributor to [CommonLibF4](https://github.com/libxse/commonlibf4). This plugin would be impossible without their reverse-engineering work.
+- The libxse team, Dear-Modding-FO4, and every contributor to CommonLibF4 ([libxse/commonlibf4](https://github.com/libxse/commonlibf4), [Dear-Modding-FO4/commonlibf4](https://github.com/Dear-Modding-FO4/commonlibf4)). This plugin would be impossible without their reverse-engineering work.
 - [Hydra](https://www.nexusmods.com/fallout4/mods/104159) for EditorID resolution.
 - [Baka Framework](https://www.nexusmods.com/fallout4/mods/53872) — `EditorIDLoader` is derived from its loader (GPL-3.0; see `EXCEPTIONS.md`).
