@@ -1,0 +1,9 @@
+build/
+build_output/
+.xmake/
+compile_commands.json
+Data/F4SE/Plugins/*.dll
+Data/F4SE/Plugins/*.pdb
+Data/zips/
+*.zip
+*.user

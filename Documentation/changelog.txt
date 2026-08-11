@@ -1,0 +1,19 @@
+0.91 (current beta)
+
+Power Armor Swap Fix: Swapping a Power-Armored human into a robot (or any non-PA base) no longer leaves the new actor invisible. BNS now strips the leftover power-armor state from the source before the swap. Quest-bound gear is left untouched.
+
+Next-Gen / 2026 Update Support: Works with the May 2026 Fallout 4 update and NG/AE. Tested extensively on AE - please report bugs on other versions.
+
+Dynamic Modification System: Instead of (or alongside) a swap, you can now modify an NPC in place with addFactions, addItems, and addOMODs / addOMODsToEquipment. OMODs are matched against each item's native MNAM data, so they only attach to valid weapons/armor (including Power Armor pieces), preventing crashes. OMODRandomizationPerItem (default true) controls whether the OMOD chance is rolled per item or once for the whole actor.
+
+Test Mode (dryRun): Add dryRun = true to any rule to match and log exactly as normal while skipping every mutation. The actor is not marked as processed, so removing dryRun later lets the rule fire on the same actors. Use it to confirm your filters before committing.
+
+EditorID Support: You no longer need to look up confusing hex codes! You can now use exact Editor IDs in your INI files (e.g., replaceBy = LCharSuperMutant instead of the old Fallout4.esm|FormID format). Requires Hydra.
+
+Locational Filters: You can now restrict your swaps to specific areas! Want to turn Gunners into Synths, but only if they are in Diamond City or the Glowing Sea? Now you can with the new filterByLocation tags.
+
+"Bodyguard" Spawning Mode: Instead of replacing an NPC, you can now use spawnAlongside = TargetForm to generate a brand new actor standing right next to them. Great for giving Raiders a loyal attack dog or spawning Protectrons alongside Gunners! Always use a chance filter with spawns to avoid infinite loops.
+
+Advanced Debugging (debugLevel): Mod authors rejoice! You can now set a debugLevel (0 to 4) in your rules. If an NPC doesn't swap, the BNS log file will now tell you exactly why they failed the check so you can fix your INI faster.
+
+Smarter AI/Faction Inheritance & Many Bugfixes: Added experimental support for AI/Faction manipulation, plus many bugfixes under the hood for a safer, smoother experience.

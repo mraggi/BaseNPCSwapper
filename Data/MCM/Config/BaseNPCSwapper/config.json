@@ -1,0 +1,49 @@
+{
+    "modName": "Base NPC Swapper",
+    "displayName": "Base NPC Swapper",
+    "minMcmVersion": 1,
+    "content": [
+        {
+            "type": "text",
+            "text": "Before removing this mod from your load order, you must click the button below to flush the active queue and safely unhook the plugin from the engine."
+        },
+        {
+            "type": "button",
+            "text": "Uninstall BNS",
+            "help": "Seals the Engine hook and flushes the swap queue. A notification will appear in the top left when it is safe to save and exit.",
+            "action": {
+                "type": "CallGlobalFunction",
+                "script": "BNSUninstaller",
+                "function": "StartUninstall"
+            }
+        },
+        {
+            "type": "text",
+            "text": "If you have edited your INI rules and want them to apply to actors that have already been processed in this save, click below to clear the processed-actors cache. All visible actors will be re-evaluated against the current ruleset on their next load."
+        },
+        {
+            "type": "button",
+            "text": "Clear Processed Cache",
+            "help": "Wipes the list of already-evaluated actors so every actor is re-checked against the current rules on next load. Safe to use anytime except during uninstall.",
+            "action": {
+                "type": "CallGlobalFunction",
+                "script": "BNSUninstaller",
+                "function": "StartClearCache"
+            }
+        },
+        {
+            "type": "text",
+            "text": "Iterating on INI rules? Click below to re-parse every INI file under Data\\F4SE\\Plugins\\BaseNPCSwapper without restarting the game. New OMODs are scanned incrementally so the reload is fast (typically under a second). The pipeline pauses while reloading, then resumes; every visible actor re-evaluates on its next load."
+        },
+        {
+            "type": "button",
+            "text": "Reload Rules",
+            "help": "Re-parses the INI rule files, incrementally updates the OMOD cache, and resumes the pipeline. Use after editing rules so changes take effect without a game restart.",
+            "action": {
+                "type": "CallGlobalFunction",
+                "script": "BNSUninstaller",
+                "function": "StartReloadRules"
+            }
+        }
+    ]
+}
