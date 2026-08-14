@@ -1,6 +1,8 @@
-0.9.1 (current beta)
+0.9.5 (current beta)
 
-OG / NG / AE from One DLL: BNS now runs on the original pre-Next-Gen Fallout 4 (1.10.163) as well as NG and AE, from a single file - no separate download, no version-matched build. Note that OG has not yet been confirmed in-game by anyone; please report how it goes.
+OG / NG / AE from One DLL: BNS now runs on the original pre-Next-Gen Fallout 4 (1.10.163) as well as NG and AE, from a single file - no separate download, no version-matched build. AE is the version this mod is developed and tested on. OG and NG are EXPERIMENTAL: believed correct, but not yet confirmed in-game by anyone. Please report how they go.
+
+Robot Body Fix: A swapped actor no longer keeps its old body's parts. Swapping into a robot could leave it wearing the ORIGINAL actor's limbs - a Robobrain with Assaultron arms and no treads - and swapping a robot into a creature or human left leftover robot parts attached, which is why the odd feral ghoul had a thruster flame burning at its feet. Affects Automatron robots most visibly, since their entire body comes from an object template.
 
 Interior / Exterior Filters: Two new keys, filterByMustBeInterior and filterByMustBeExterior, restrict a rule to indoors or outdoors. Write them on a line by themselves - no value needed. "Interior" means the Creation Kit's cell flag, so open-air places like Diamond City count as exterior. The check happens when the NPC's 3D loads, in whatever cell they load in.
 
@@ -8,7 +10,7 @@ Typo Warnings: Misspelled keys in your INI used to be dropped silently, which qu
 
 Power Armor Swap Fix: Swapping a Power-Armored human into a robot (or any non-PA base) no longer leaves the new actor invisible. BNS now strips the leftover power-armor state from the source before the swap. Quest-bound gear is left untouched.
 
-Next-Gen / 2026 Update Support: Works with the May 2026 Fallout 4 update and NG/AE. Tested extensively on AE - please report bugs on other versions.
+Next-Gen / 2026 Update Support: Works with the May 2026 Fallout 4 update. Tested on AE - see the OG/NG/AE entry above for the status of the other runtimes.
 
 Dynamic Modification System: Instead of (or alongside) a swap, you can now modify an NPC in place with addFactions, addItems, and addOMODs / addOMODsToEquipment. OMODs are matched against each item's native MNAM data, so they only attach to valid weapons/armor (including Power Armor pieces), preventing crashes. OMODRandomizationPerItem (default true) controls whether the OMOD chance is rolled per item or once for the whole actor.
 

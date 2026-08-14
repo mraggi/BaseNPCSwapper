@@ -107,14 +107,24 @@ A misspelled key is silently dropped, which for a **filter** means the rule ends
 3. Drop the contents of the release zip into your Fallout 4 install (or better yet - use a mod manager).
 4. Add INI rules under `Data/F4SE/Plugins/BaseNPCSwapper/`.
 
-**Game version:** built on CommonLibF4's OG/NG/AE support, so the same DLL
-should work whether you're on the pre-Next-Gen ("OG", 1.10.163), Next-Gen
-("NG"), or Anniversary Edition ("AE") build — you'll still need the [Address
+**Game version:** built on CommonLibF4's OG/NG/AE support, so one DLL covers
+the pre-Next-Gen ("OG", 1.10.163), Next-Gen ("NG") and Anniversary Edition
+("AE") builds. You still need the [Address
 Library](https://www.nexusmods.com/fallout4/mods/47327) entry matching your
-exact exe version. **OG support is experimental** — it hasn't been run
-in-game yet (this project only builds on a Windows VM with no way to launch
-the game). If BNS does nothing at all on OG, or EditorID-based rules fail to
-resolve, please report it.
+exact exe version.
+
+| Runtime | Status |
+|---|---|
+| **AE** (1.11.x) | **Tested.** Everything below is developed and verified here |
+| **NG** (1.10.980+) | **Experimental** — believed correct, not confirmed in-game |
+| **OG** (1.10.163) | **Experimental** — believed correct, not confirmed in-game |
+
+OG and NG are experimental in the literal sense: the addresses come from
+CommonLibF4's per-runtime tables and the code was checked against them, but
+nobody has actually launched those builds with BNS installed. This project
+develops on AE only. If BNS does nothing at all on OG or NG, or EditorID-based
+rules fail to resolve, please report it — that's the feedback that would move
+them out of experimental.
 
 If Hydra isn't installed BNS will pop a MessageBox at launch — without Hydra, EditorID lookups for NPC-typed forms will fail and rules referencing those forms by EditorID may not work as intended. The `Mod.esp|FormID` syntax still works without Hydra.
 

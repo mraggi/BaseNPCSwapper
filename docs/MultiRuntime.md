@@ -5,11 +5,13 @@ Fallout 4 exists in three incompatible layouts, and the
 CommonLibF4 lets a single DLL serve all three. This is the part of the
 codebase you have to actually understand — everything else is plumbing.
 
-**Status: OG (and by extension the whole multi-runtime setup) is
-experimental.** It builds and is believed correct by inspection, but nobody
-has run this DLL on an OG or a freshly-updated AE install yet — the project
-only builds on a Windows VM with no way to launch the game (see CLAUDE.md).
-Treat OG support as best-effort until field reports come in.
+**Status: AE is tested. OG and NG are experimental.** Development and all
+in-game verification happen on AE — including the 60-test suite in `tests/`,
+which runs against a live game. OG and NG build from the same source and are
+believed correct by inspection of CommonLibF4's per-runtime tables, but nobody
+has launched either of those builds with BNS installed. Treat them as
+best-effort until field reports come in; the user-facing docs say exactly this,
+so keep them in step.
 
 ## The three runtimes
 

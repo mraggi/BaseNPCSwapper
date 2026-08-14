@@ -1,8 +1,6 @@
 [b]Dynamically (F4SE) replace any NPC in the game at runtime using INI files. No leveled list conflicts, no (hopefully) broken quests.[/b]
 
-This version works, theoretically, with NG+ (NG, AE, and the may 2026 update). But please test and report bugs. Tested extensively on AE. Help me test other versions!
-
-One day I want to make it compatible with OG, but today is not that day.
+One DLL now covers all three Fallout 4 builds: OG (the original pre-Next-Gen 1.10.163), NG, and AE. AE is the version this mod is developed and tested on. OG and NG support is EXPERIMENTAL - it is believed correct, but nobody has confirmed it in-game yet. If you run OG or NG, please test and report back; that is exactly the feedback needed to call them supported. You still need the Address Library entry matching your exact exe version.
 
 Needs [url=https://www.nexusmods.com/fallout4/mods/42147]F4SE[/url], [url=https://www.nexusmods.com/fallout4/mods/47327]Address Library[/url], and optionally [url=https://www.nexusmods.com/fallout4/mods/104159]Hydra[/url] if your rules use EditorIDs (highly recommended).
 
