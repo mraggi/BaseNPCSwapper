@@ -7,10 +7,9 @@ codebase you have to actually understand — everything else is plumbing.
 
 **Status: OG (and by extension the whole multi-runtime setup) is
 experimental.** It builds and is believed correct by inspection, but nobody
-has run this DLL on an OG or a freshly-updated AE install yet — development
-only has access to a Windows VM with no way to launch the game. Treat OG
-support as best-effort until field reports come in. See the warning at the
-top of the [README](../README.md).
+has run this DLL on an OG or a freshly-updated AE install yet — the project
+only builds on a Windows VM with no way to launch the game (see CLAUDE.md).
+Treat OG support as best-effort until field reports come in.
 
 ## The three runtimes
 

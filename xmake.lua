@@ -57,10 +57,10 @@ add_defines("COMMONLIB_RUNTIMECOUNT=3")
 -- The plugin then carries NO external CRT dependency (no msvcp140.dll /
 -- vcruntime140*.dll / api-ms-win-crt-*.dll imports), so it is immune to a
 -- user's — or a Wine/Proton prefix's — broken, missing, or mismatched VC++
--- redistributable. That CRT fragility was the root cause of a
--- "couldn't load plugin (000000C1 / 193)" failure seen during development.
--- Setting this at root scope also forces xrepo deps (spdlog) to rebuild with
--- /MT, so there is no LNK2038 runtime mismatch.
+-- redistributable. That CRT fragility was the root cause of the 2026-06-08
+-- "couldn't load plugin (000000C1 / 193)" failure (see CLAUDE.md Build
+-- troubleshooting). Setting this at root scope also forces xrepo deps
+-- (spdlog) to rebuild with /MT, so there is no LNK2038 runtime mismatch.
 if is_mode("debug") then
 	set_runtimes("MTd")
 else

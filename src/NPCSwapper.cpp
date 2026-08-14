@@ -18,8 +18,8 @@
 #include <vector>
 
 // =============================================================================
-// Swap pipeline — see docs/TECHNICAL.md for the failure-mode history that
-// shaped this. Quick summary:
+// Swap pipeline — see CLAUDE.md ("Swap pipeline" and "Engine quirks worth
+// remembering") for the failure-mode history that shaped this. Quick summary:
 //
 //   Step 1 → Step 2 → Step 3 → Step 4
 //                                ├─ broken: Step4_RetryDisable → _RetryEnable
@@ -145,7 +145,7 @@ namespace
     // SynthGen2RaceValentine — the engine's "unresolved / unknown race" fallback
     // (last entry in the race enum). A successfully resolved actor NEVER ends up
     // with it; a bailed template resolution ALWAYS does (gen-2-synth head, no
-    // body → the "floating face"). See docs/TECHNICAL.md.
+    // body → the "floating face"). See docs/EngineQuirks.md.
     constexpr std::uint32_t kSynthGen2RaceValentine = 0x002261A4;
 
     // Broken-resolution detector. The one authoritative symptom of the bug we
@@ -539,6 +539,42 @@ namespace
     // cached LVLN/template roll so the next Enable resolves cleanly from our
     // new target. EnsureRobotInstanceData materialises the templated base's
     // recipe (see helper's big WARNING for why robots break without it).
+    //
+    // kObjectInstance / kInstanceData must go too, and for a long time they
+    // didn't. That extra holds the actor's object-template mod list — for an
+    // Automatron robot it IS its body: limbs, treads, armour. Left in place it
+    // survives SetObjectReference, so the actor keeps its OLD parts:
+    //
+    //   * robot -> organic left robot limbs attached to flesh. Measured on
+    //     2026-08-14: a deathclaw with 32 instance mods, a feral ghoul with 14
+    //     (visible in game as a robot thruster flame burning at its feet).
+    //     Organic -> organic swaps are consistently 0, so 0 is the right value.
+    //   * robot -> robot merged both lists. A Robobrain whose template declares
+    //     9 includes came out with 13, wearing the source Assaultron's limbs
+    //     and no treads.
+    //
+    // Proof it came from the source rather than the target: two swaps to the
+    // SAME Warmaster base reported 10 and 0 mods depending on what the actor
+    // used to be.
+    //
+    // The retired 9-phase pipeline cleared this in ClearLeveledAndInstanceExtras
+    // ("so the surgery doesn't reuse stale data from the previous identity");
+    // the v3 consolidation kept only the kLeveledCreature half.
+    //
+    // That old helper also cleared kInstanceData and kOutfitItem. NEITHER is
+    // removed here, deliberately:
+    //
+    //   * kInstanceData was tried on 2026-08-14 and reverted. It fixed nothing
+    //     extra — kObjectInstance alone already takes every organic target to 0
+    //     mods and the Robobrain to its template's 9 — but it DID change
+    //     template resolution: swaps onto template-based humans (EncGunner07/08)
+    //     stopped landing on the concrete base and started minting a dynamic
+    //     0xFF leaf instead. Harmless-looking, but it is a behaviour change with
+    //     no problem behind it.
+    //   * kOutfitItem is Step 5's business (InitDefaultWornImpl), and nothing
+    //     observed suggests it goes stale.
+    //
+    // Removing extras here is not free. Only remove one with evidence.
     void Step2_SwapBase(SwapContext a_ctx)
     {
         DumpWithLabel(a_ctx, "Step 2: AFTER first Disable, BEFORE SwapBase");
@@ -552,13 +588,20 @@ namespace
             return;
         }
 
-        spdlog::info("[Swap {:08X}] [Step 2] RemoveExtra(kLeveledCreature) + "
+        spdlog::info("[Swap {:08X}] [Step 2] RemoveExtra(kLeveledCreature, kObjectInstance) + "
                      "SetObjectReference('{}' [{:08X}]) + EnsureRobotInstanceData",
                      a_ctx.formID,
                      Utils::GetFormName(a_ctx.targetBase),
                      a_ctx.targetBaseID);
 
-        if (actor->extraList) actor->extraList->RemoveExtra(RE::EXTRA_DATA_TYPE::kLeveledCreature);
+        if (actor->extraList)
+        {
+            actor->extraList->RemoveExtra(RE::EXTRA_DATA_TYPE::kLeveledCreature);
+            // Order matters: this must go BEFORE SetObjectReference, so that
+            // EnsureRobotInstanceData below builds the new base's recipe onto a
+            // clean slate instead of merging into the old identity's.
+            actor->extraList->RemoveExtra(RE::EXTRA_DATA_TYPE::kObjectInstance);
+        }
         StripPowerArmorState(a_ctx);
         actor->SetObjectReference(a_ctx.targetBase);
         EnsureRobotInstanceData(a_ctx);

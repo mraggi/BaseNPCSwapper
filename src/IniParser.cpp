@@ -203,6 +203,8 @@ static const std::unordered_map<std::string_view, KeyHandler> keyHandlers
      {"filterByMustBeInPowerArmor", [](SwapRule& r, std::string) { r.powerArmorState = PowerArmorCondition::kMustWear; }},
      {"filterByMustNotWearPowerArmor",
       [](SwapRule& r, std::string) { r.powerArmorState = PowerArmorCondition::kMustNotWear; }},
+     {"filterByMustBeInterior", [](SwapRule& r, std::string) { r.interiorState = InteriorCondition::kMustBeInterior; }},
+     {"filterByMustBeExterior", [](SwapRule& r, std::string) { r.interiorState = InteriorCondition::kMustBeExterior; }},
      {"filterByMustNotBeInPowerArmor",
       [](SwapRule& r, std::string) { r.powerArmorState = PowerArmorCondition::kMustNotWear; }},
 
@@ -287,6 +289,18 @@ static void ParseRuleString(std::string_view ruleStr,
             }
             it->second(rule, valStr);
             hasValidData = true;
+        }
+        else if (!keyStr.empty())
+        {
+            // Silently dropping a typo is dangerous: a misspelled *filter* does
+            // not produce a broken rule, it produces a rule with one fewer
+            // restriction — i.e. one that fires far more widely than intended.
+            spdlog::warn("[{} @ line {}] Unknown key '{}' — ignored. Either it is misspelled (and if it was meant to "
+                         "be a filter, the rule is now LESS restrictive than you think), or a value in this rule "
+                         "contains a ':', which the parser treats as a key separator.",
+                         filename,
+                         lineNum,
+                         keyStr);
         }
     }
 

@@ -51,6 +51,7 @@ int main(int argc, char* argv[])
         PrintVector("locationalFiltersExcluded", rule.locationalFiltersExcluded);
 
         std::cout << "    powerArmorState: " << static_cast<int>(rule.powerArmorState) << "\n";
+        std::cout << "    interiorState: " << static_cast<int>(rule.interiorState) << "\n";
         std::cout << "    levelRange:      " << rule.minLevel << " ~ " << rule.maxLevel << "\n";
         std::cout << "    chanceRange:     " << rule.chanceMin << " ~ " << rule.chanceMax
                   << " (Scaling: " << rule.ChanceScalingPerLevel << ")\n";

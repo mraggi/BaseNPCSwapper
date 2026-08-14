@@ -183,6 +183,28 @@ MatchResult EvaluateActorMatch(RE::Actor* a_actor, const ActorInfo& a_info, cons
         }
     }
 
+    // Interior/exterior is the CELL flag (what the Creation Kit shows), so an
+    // actor with no parent cell simply cannot be classified — fail closed
+    // rather than guess.
+    if (!locFail && a_rule.interiorState != InteriorCondition::kIgnore)
+    {
+        if (!currentCell)
+        {
+            locFail = true;
+            locContext = "Interior/exterior filter set but actor has no parent cell.";
+        }
+        else if (a_rule.interiorState == InteriorCondition::kMustBeInterior && !currentCell->IsInterior())
+        {
+            locFail = true;
+            locContext = "Must be in an interior cell (but is outside).";
+        }
+        else if (a_rule.interiorState == InteriorCondition::kMustBeExterior && currentCell->IsInterior())
+        {
+            locFail = true;
+            locContext = "Must be in an exterior cell (but is inside).";
+        }
+    }
+
     if (locFail) { return {false, 0.0, MatchFailReason::Location, locContext}; }
 
     for (auto* kw : a_rule.excludedKeywords)

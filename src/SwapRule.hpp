@@ -11,6 +11,16 @@ enum class PowerArmorCondition
     kMustNotWear = 2
 };
 
+// "Interior" is the literal CELL flag (RE::TESObjectCELL::IsInterior), i.e.
+// what the Creation Kit shows — so enclosed-feeling exteriors like Diamond
+// City count as kMustBeExterior.
+enum class InteriorCondition
+{
+    kIgnore = 0,
+    kMustBeInterior = 1,
+    kMustBeExterior = 2
+};
+
 struct SwapRule
 {
     // Meta info
@@ -33,6 +43,7 @@ struct SwapRule
     std::vector<std::string> nameMustContain;
     std::vector<std::string> nameMustNotContain;
     PowerArmorCondition powerArmorState = PowerArmorCondition::kIgnore;
+    InteriorCondition interiorState = InteriorCondition::kIgnore;
 
     std::vector<std::string> locationalFilters;
     std::vector<std::string> locationalFiltersExcluded;

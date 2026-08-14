@@ -28,6 +28,7 @@ struct SwapRuleResolved
     std::vector<std::string> nameMustNotContain;
 
     PowerArmorCondition powerArmorState = PowerArmorCondition::kIgnore;
+    InteriorCondition interiorState = InteriorCondition::kIgnore;
 
     // --- Locational ---
     std::vector<RE::TESObjectCELL*> requiredCells;

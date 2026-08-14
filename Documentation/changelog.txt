@@ -1,4 +1,10 @@
-0.91 (current beta)
+0.9.1 (current beta)
+
+OG / NG / AE from One DLL: BNS now runs on the original pre-Next-Gen Fallout 4 (1.10.163) as well as NG and AE, from a single file - no separate download, no version-matched build. Note that OG has not yet been confirmed in-game by anyone; please report how it goes.
+
+Interior / Exterior Filters: Two new keys, filterByMustBeInterior and filterByMustBeExterior, restrict a rule to indoors or outdoors. Write them on a line by themselves - no value needed. "Interior" means the Creation Kit's cell flag, so open-air places like Diamond City count as exterior. The check happens when the NPC's 3D loads, in whatever cell they load in.
+
+Typo Warnings: Misspelled keys in your INI used to be dropped silently, which quietly made rules LESS restrictive than intended (a misspelled filter is simply no filter). They are now reported in the log with the file and line number.
 
 Power Armor Swap Fix: Swapping a Power-Armored human into a robot (or any non-PA base) no longer leaves the new actor invisible. BNS now strips the leftover power-armor state from the source before the swap. Quest-bound gear is left untouched.
 

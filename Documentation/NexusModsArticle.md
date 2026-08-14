@@ -93,6 +93,8 @@ For example, if you swap a Raider to a Gunner first, THEN another rule evaluates
 [*][b]filterByNameMustContain / MustNotContain[/b]: String checks on their display name. Case-insensitive.[/*]
 [*][b]filterByLocation[/b]: The NPC must be in this Cell, WorldSpace, or Location.[/*]
 [*][b]filterByLocationExcluded[/b]: Do not swap if they are in these locations. Higher priority than previous rule.[/*]
+[*][b]filterByMustBeInterior[/b]: Only swaps actors indoors. No value needed — just the key on its own line. "Interior" is the Creation Kit's cell flag, so open-air settlements like Diamond City count as [i]exterior[/i].[/*]
+[*][b]filterByMustBeExterior[/b]: The inverse — only swaps actors outdoors.[/*]
 [*][b]filterByMustWearPowerArmor[/b]: Only swaps actors currently wearing a Power Armor frame.[/*]
 [*][b]filterByMustNotWearPowerArmor[/b]: Only swaps actors walking around on foot.[/*]
 [/list]

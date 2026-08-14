@@ -1,23 +1,5 @@
 # BaseNPCSwapper (BNS) for Fallout 4
 
-> ### ⚠️ `experimental` branch
->
-> This branch is the **multi-runtime port**, published for source review. It
-> builds against a fork of CommonLibF4 that carries per-runtime addresses, so
-> a single DLL targets OG (1.10.163), NG (up to 1.10.984) and AE (1.11.x)
-> instead of NG/AE only.
->
-> **It has not been run in-game at all** — development only has access to a
-> Windows build VM, with no way to launch the game on this machine. OG/NG/AE
-> address resolution is believed correct by inspection (see
-> [docs/MultiRuntime.md](docs/MultiRuntime.md)), but two vtable hooks the
-> plugin installs itself (`Actor::Load3D`, and the EditorID fallback) hardcode
-> a slot index that is *assumed*, not confirmed, to be identical across all
-> three runtimes. If that assumption is wrong on OG, the plugin silently does
-> nothing rather than crashing. **Back up your save** if you try this on OG.
->
-> `main` is the released, NG/AE-only code.
-
 **[Available on Nexus Mods](https://www.nexusmods.com/fallout4/mods/104443)**
 
 BaseNPCSwapper is an F4SE plugin that intercepts every NPC's 3D-load at runtime and, according to user-defined INI rules, can:
@@ -28,15 +10,14 @@ BaseNPCSwapper is an F4SE plugin that intercepts every NPC's 3D-load at runtime 
 
 Rules live in plain INI files under `Data/F4SE/Plugins/BaseNPCSwapper/`. There is no scripting required from the rule author.
 
-An F4SE plugin: no ESP, no plugin slot. If you want the implementation details — the vtable hook, the 9-phase swap, the engine quirks that shaped it — see [docs/TECHNICAL.md](docs/TECHNICAL.md).
-
 ---
 
 ## Table of contents
 
 - [For mod authors: writing rules](#for-mod-authors-writing-rules)
 - [For users: install + uninstall](#for-users-install--uninstall)
-- [Dependencies](#dependencies)
+- [For developers: architecture](#for-developers-architecture)
+- [Building](#building)
 - [Credits](#credits)
 
 ---
@@ -90,11 +71,12 @@ Filter keys are AND-combined (the actor must satisfy every filter). The one exce
 - **Keywords**: `filterByKeywordsRequired`, `filterByKeywordsExcluded`
 - **Name**: `filterByNameMustContain`, `filterByNameMustNotContain` (substring, case-insensitive)
 - **Location** (OR): `filterByLocation`, `filterByLocationExcluded`. Cells, worldspaces, and locations all accepted; location matching walks the `parentLoc` chain so child locations inherit parent matches.
+- **Indoors/outdoors**: `filterByMustBeInterior` / `filterByMustBeExterior` (no value needed). Uses the cell's *interior* flag as the Creation Kit defines it, so enclosed-feeling exteriors like Diamond City count as exterior. Evaluated when the actor's 3D loads, in whatever cell that happens to be — an actor loaded outdoors that later walks inside is not re-checked.
 - **State**: `filterByMustWearPowerArmor` / `filterByMustNotWearPowerArmor`
 - **Defaults on**: `skipUniques`, `skipEssentials`. Set to `false` to override.
 - **Level**: `levelRange = min~max` (open-ended on either side, e.g. `10~` or `~30`).
 - **Chance**: `chance = flat` or `chance = min~max~scalingPerLevel` (the chance grows with the actor's level, clamped to `[min, max]`).
-- **Priority**: `sortOrder` (higher runs earlier; default 0).
+- **Priority**: `sortOrder` (lower runs earlier; default 0). Ties keep the alphabetical file order.
 
 ### Debugging
 
@@ -108,6 +90,14 @@ Set `debugLevel = N` in your rule and check `My Documents/My Games/Fallout4/F4SE
 
 **Don't ship a mod with `debugLevel >= 2`.** Every actor load is evaluated.
 
+Rule *parsing* warnings are always logged, regardless of `debugLevel` — they happen once at load, before any rule has a debug level. The one to watch for is:
+
+```
+[MyRules.ini @ line 12] Unknown key 'filterByMustBeIndoors' — ignored. ...
+```
+
+A misspelled key is silently dropped, which for a **filter** means the rule ends up *less* restrictive than you intended — often firing on far more NPCs than you wanted. If a rule is matching things it shouldn't, check for this warning first. The same warning also appears when a value contains a `:`, because the parser treats `:` as a key separator (`ruleName = "Gunners: Phase 2"` parses as a rule named `"Gunners`).
+
 ---
 
 ## For users: install + uninstall
@@ -117,11 +107,14 @@ Set `debugLevel = N` in your rule and check `My Documents/My Games/Fallout4/F4SE
 3. Drop the contents of the release zip into your Fallout 4 install (or better yet - use a mod manager).
 4. Add INI rules under `Data/F4SE/Plugins/BaseNPCSwapper/`.
 
-**Game version:** this branch targets OG (pre-Next-Gen, 1.10.163), NG, and AE
-from one DLL — you'll still need the [Address
+**Game version:** built on CommonLibF4's OG/NG/AE support, so the same DLL
+should work whether you're on the pre-Next-Gen ("OG", 1.10.163), Next-Gen
+("NG"), or Anniversary Edition ("AE") build — you'll still need the [Address
 Library](https://www.nexusmods.com/fallout4/mods/47327) entry matching your
-exact exe version. **OG support is experimental**, see the warning at the top
-of this file.
+exact exe version. **OG support is experimental** — it hasn't been run
+in-game yet (this project only builds on a Windows VM with no way to launch
+the game). If BNS does nothing at all on OG, or EditorID-based rules fail to
+resolve, please report it.
 
 If Hydra isn't installed BNS will pop a MessageBox at launch — without Hydra, EditorID lookups for NPC-typed forms will fail and rules referencing those forms by EditorID may not work as intended. The `Mod.esp|FormID` syntax still works without Hydra.
 
@@ -135,7 +128,107 @@ The plugin ships with an MCM-driven uninstaller. Trigger `BNSUninstaller.Uninsta
 
 ---
 
-## Dependencies
+## For developers: architecture
+
+Bethesda's Creation Engine is aggressively asynchronous and overlaps actor 3D loading with face-gen, Havok physics setup, and AI initialization. Mutating an actor's base form (`TESNPC`) at the wrong moment causes T-poses, missing skeletons, race-mismatch crashes, or silent CTDs. The bulk of BNS is shaped around getting the timing right.
+
+### Lifecycle
+
+1. **`kPostLoad`** — check Hydra; install the fallback `EditorIDLoader` if missing (based on Baka Framework).
+2. **`kGameDataReady`** — parse INI files into `SwapRule`, resolve every string identifier to a live `RE::TESForm*` (`SwapRuleResolved`), hand the resolved list to `NPCManager`, install the `Actor::Load3D` VTable hook (index `0x86`), kick off a background OMOD-cache build on the `DelayManager` worker thread.
+3. **Per actor** — the hook calls `NPCManager::QueueDeferredEvaluation`, which queues the actor on the manager's continuation-passing chain.
+
+### The per-actor pipeline (`NPCManager`)
+
+Each actor walks the rule list sequentially. The chain hops between `DelayManager` (a single background timer thread) and `F4SE::GetTaskInterface()` (the main thread) — no new worker threads are created beyond the one timer thread.
+
+```
+Actor::Load3D hook
+   └─► NPCManager::QueueDeferredEvaluation
+       └─► Stabilize: poll Get3D() && !faceGenLoadPending
+           └─► EvaluateRuleAt(refID, 0)
+               │   rule matches?
+               │   ├─► ExecuteMatchingRule(refID, idx)
+               │   │     1. PerformSpawnAlongside (fire-and-forget; spawned actor enters its own pipeline)
+               │   │     2. Swapper::PerformSwap (9 phases; see below)
+               │   │     3. Modifier::ApplyModificationsAsync (factions/items sync; OMODs via Papyrus)
+               │   │     └─► EvaluateRuleAt(refID, idx + 1)
+               │   no match
+               │   └─► EvaluateRuleAt(refID, idx + 1)
+               │   end of list
+               │   └─► FinishActorPipeline → Swapper::FinalizeActor
+```
+
+The `refID` is stable throughout — only the base form changes after a swap, so the next rule re-evaluates against the actor's new identity. Every continuation re-fetches the actor by `FormID` to handle despawn / death mid-chain.
+
+### The 9-phase swap (`NPCSwapper`)
+
+Most of these are probably overcomplications, but whatever. It works...
+
+`PerformSwap` first rolls the rule's `replaceBy` (LVLN if necessary) to a concrete NPC. It builds a `SwapContext`, acquires a per-base face-gen lock (so two actors swapping to the same NPC don't collide), and runs:
+
+| Phase | What happens |
+|------:|--------------|
+| **1** | `Disable()`, `Release3DRelatedData()`, clear face/biped process fields, strip stale extras (RaceData, InstanceData, ModelSwap, PowerArmor*, OutfitItem, TextDisplayData). |
+| **2** | Poll until `Get3D() == nullptr` — confirms teardown took effect. |
+| **3** | "Surgery": gender twiddle on the shared `TESNPC`, pre-set race, call `SetObjectReference(newBase)`, re-apply race (the engine clobbers it inside the setter for templated hubs), inject the original loot, inject an `ExtraLeveledCreature` block with all 13 template slots resolved (LVLN rolls cached so shared LVLNs land on the same leaf). |
+| **4** | `SetPosition`/`SetActorAngle`/`Enable(true)`. Engine starts instantiating the new identity. |
+| **5** | Poll until "engine settled": templated hubs produce a `0xFF` leaf base; concrete bases never do, so we fall back to *(face-gen done && `Get3D() != nullptr`)*. |
+| **6** | "Save/reload simulation": `Reset3D(reloadAll=true, queueReset=true)` + `ResetHavokPhysics()` + `HandleDefaultAnimationSwitch()`. Actually saving and reloading the game fixes T-poses; we can't trigger that mid-game, so this is the closest native approximation. |
+| **7** | Poll until `Get3D() != nullptr` — rebuild completed. |
+| **8** | Restore the shared-base gender flag, `InitDefaultWornImpl(true, true)`, dispatch `BNSSpawnHelper.ResetActorState` (Disable/Enable + HP reset). |
+| **9** | Final `SetPosition`/`SetActorAngle`, release the per-base lock, fire the completion callback. |
+
+The per-base face-gen lock matters when two actors hit the pipeline simultaneously with the same `replaceBy`: the second one's Phase 1 is queued in `g_pendingSwaps[targetBaseID]` and resumed when the first completes. Without this, the engine corrupts the shared face-gen geometry handle.
+
+### Modifications (`NPCModifier`)
+
+Runs after the swap chain finishes (or immediately, if a rule has no `replaceBy`).
+
+- **Factions** — synchronous C++ writes to `ExtraFactionChanges` on the actor's `extraList`.
+- **Items** — synchronous `AddObjectToContainer`.
+- **OMODs** — batched via Papyrus. `BNSSpawnHelper.SafeAttachMods` takes up to 8 OMOD FormIDs per call and does drop → attach → re-add → re-equip in one atomic VM turn (the unbatched per-OMOD predecessor raced and frequently left items un-equipped). Candidates are filtered by the OMOD's attach-point keyword index *and* by `ma_*` recipe keywords on the target item. Power Armor pieces are matched via MNAM (their APPRs list frame slots, not mod slots); regular weapons/armor are matched via attach-parent.
+
+The OMOD cache is built off-thread at boot (`MNAMResolver` reads raw ESP/ESM bytes since CommonLibF4 doesn't expose MNAM data structurally). Actors that hit the pipeline before the cache is ready get the rest of their rule applied normally; `ApplyModificationsAsync` re-queues itself on the `DelayManager` until `MNAMResolver::IsCacheReady()` returns `true`. No actors are lost.
+
+### Other moving parts
+
+- **`DelayManager`** — single background thread holding a sorted vector of `(executeTime, fn)` pairs; every callback hops back to the main thread via `F4SE::GetTaskInterface()->AddTask`. Polling uses the same primitive.
+- **`EditorIDLoader`** — when Hydra is missing, hooks `GetFormEditorID` / `SetFormEditorID` (vfuncs `0x3A` / `0x3B`) on ~90 form types and maintains a `FormID → EditorID` side-map. Adapted from Baka Framework (GPL-3.0). Doesn't cover everything Hydra does, hence the prompt at startup.
+- **`MNAMResolver`** — parses ESP/ESM headers on the worker thread, walks the OMOD group, and builds a `runtime FormID → MNAM keyword` map. Only OMODs referenced by at least one rule are parsed.
+- **`serialization`** — F4SE co-save records the processed-actor set so reloading a save doesn't re-swap actors that have already been handled. Record type `'BNSA'`; V1 and V2 readers both supported.
+
+### Source map
+
+| File                              | Responsibility                                                              |
+|-----------------------------------|-----------------------------------------------------------------------------|
+| `main.cpp`                        | F4SE entry, hook install, Papyrus native bindings, message dispatch.        |
+| `NPCManager.{hpp,cpp}`            | Per-actor rule walk and continuation chain.                                 |
+| `NPCSwapper.{hpp,cpp}`            | The 9-phase swap, per-base lock, processed-actor set.                       |
+| `NPCEvaluator.{hpp,cpp}`          | Rule matching + debug logging.                                              |
+| `NPCModifier.{hpp,cpp}`           | Factions, items, OMOD batching.                                             |
+| `IniParser.{hpp,cpp}`             | Parses INI files into `SwapRule`.                                           |
+| `SwapRule.hpp`                    | String-based rule, straight from the INI.                                   |
+| `SwapRuleResolved.{hpp,cpp}`      | Form-pointer rule + `ResolveRules` / `SmartTryResolve`.                     |
+| `MNAMResolver.{hpp,cpp}`          | Raw ESP/ESM byte parser for OMOD MNAM keywords.                             |
+| `DelayManager.{hpp,cpp}`          | Background timer thread → main-thread task dispatch.                        |
+| `EditorIDLoader.hpp`              | Header-only fallback when Hydra is absent.                                  |
+| `Utils.{hpp,cpp}`                 | LVLN rolls, template resolution, spawn helper, Papyrus dispatch, OMOD cache.|
+| `serialization.{hpp,cpp}`         | F4SE co-save read/write.                                                    |
+| `src/*.psc`                       | Papyrus side: `BNSSpawnHelper` (OMOD attach, enable/disable, HP reset), `BNSUninstaller` (MCM). |
+
+All runtime C++ lives under `namespace BNS` with sub-namespaces `Swapper`, `Evaluator`, `Modifier`, `Utils`, `MNAMResolver`, `Serialization`, `EditorIDLoader`.
+
+### Safety guarantees
+
+- **Quest integrity** — `SetObjectReference` keeps the original `ObjectReference`. Quest aliases, attached scripts, dialogue, and `kACHR` all survive the swap. The actor in the world is the same actor; only the underlying NPC base form changes.
+- **No baked-in mid-swap state** — actors in the in-progress set are intentionally NOT serialized. A save taken during a polling gap will simply re-evaluate the actor on load instead of persisting a headless / disabled record.
+- **Co-save resilience** — when an entry references a plugin that's no longer in the load order, F4SE's `ResolveFormID` returns `nullopt` and we silently drop it.
+- **Hook seal on shutdown** — the MCM uninstaller flips a flag the Load3D hook reads; new actor loads stop entering the pipeline immediately, then we wait for in-flight chains to drain.
+
+---
+
+### Dependencies
 
 - **C++23** (`std::format`, `std::ranges`, designated initializers).
 - **CommonLibF4** — git submodule at `lib/CommonLibF4`, the [Dear-Modding-FO4](https://github.com/Dear-Modding-FO4/commonlibf4) fork (adds OG/NG/AE multi-runtime support — see [docs/MultiRuntime.md](docs/MultiRuntime.md)).

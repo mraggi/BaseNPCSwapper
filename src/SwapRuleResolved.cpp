@@ -27,7 +27,7 @@ std::string ToLower(std::string s)
 // null value while still linking to a tail. BSSimpleList::empty() only reports
 // empty when BOTH value and next are null, so such a list iterates and hands
 // out that null on the very first step -> strlen((char*)0x70) -> access
-// violation.
+// violation. See BNSbug-2026-07-31-null-tesfile.md.
 const RE::TESFile* FindLoadedMod(RE::TESDataHandler& a_dataHandler, const std::string& a_modName)
 {
     const auto matches = [&a_modName](const RE::TESFile* a_file) {
@@ -330,6 +330,7 @@ std::optional<SwapRuleResolved> ResolveRule(const SwapRule& a_rule)
 
     // --- Scalars ---
     res.powerArmorState = a_rule.powerArmorState;
+    res.interiorState = a_rule.interiorState;
     res.minLevel = a_rule.minLevel;
     res.maxLevel = a_rule.maxLevel;
     res.chanceMin = std::min(a_rule.chanceMin, a_rule.chanceMax);
@@ -402,6 +403,20 @@ const char* PowerArmorStr(PowerArmorCondition a_pa)
     return "?";
 }
 
+const char* InteriorStr(InteriorCondition a_ic)
+{
+    switch (a_ic)
+    {
+    case InteriorCondition::kIgnore:
+        return "Ignore";
+    case InteriorCondition::kMustBeInterior:
+        return "MustBeInterior";
+    case InteriorCondition::kMustBeExterior:
+        return "MustBeExterior";
+    }
+    return "?";
+}
+
 // Prints every field that differs from its default.
 void DumpRule(const SwapRuleResolved& r)
 {
@@ -425,6 +440,8 @@ void DumpRule(const SwapRuleResolved& r)
     if (!r.nameMustNotContain.empty()) spdlog::info("        nameMustNotContain: {}", StringList(r.nameMustNotContain));
     if (r.powerArmorState != PowerArmorCondition::kIgnore)
         spdlog::info("        powerArmorState:  {}", PowerArmorStr(r.powerArmorState));
+    if (r.interiorState != InteriorCondition::kIgnore)
+        spdlog::info("        interiorState:    {}", InteriorStr(r.interiorState));
 
     // Locational
     if (!r.requiredCells.empty()) spdlog::info("        requiredCells:       {}", FormList(r.requiredCells));
@@ -524,6 +541,12 @@ std::uint64_t ComputeRuleHash(const SwapRuleResolved& r)
         h = FNV1aChainStr(h, s);
 
     h = FNV1aChain(h, static_cast<std::int32_t>(r.powerArmorState));
+
+    // Interior filter — chained ONLY when set, for the same co-save-stability
+    // reason as the SPECIAL boost below: a rule that doesn't use it must hash
+    // identically to pre-feature builds.
+    if (r.interiorState != InteriorCondition::kIgnore) h = FNV1aChain(h, static_cast<std::int32_t>(r.interiorState));
+
     h = FNV1aChain(h, r.minLevel);
     h = FNV1aChain(h, r.maxLevel);
     h = FNV1aChain(h, r.chanceMin);
